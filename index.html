@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>個人 AI 去背工具 (本地運算版)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/index.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f7f6; color: #333; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+        .container { max-width: 800px; width: 100%; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; }
+        h1 { margin-bottom: 10px; color: #2d3436; }
+        p { color: #636e72; margin-bottom: 30px; }
+        .upload-area { border: 2px dashed #dfe6e9; padding: 40px; border-radius: 12px; cursor: pointer; transition: 0.3s; margin-bottom: 20px; }
+        .upload-area:hover { border-color: #0984e3; background: #f0f7ff; }
+        #status { margin: 20px 0; font-weight: bold; color: #0984e3; min-height: 24px; }
+        .result-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 20px; }
+        .img-box { flex: 1; min-width: 280px; }
+        img { max-width: 100%; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); background-image: linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%), linear-gradient(45deg, #eee 25%, transparent 25%, transparent 75%, #eee 75%); background-size: 20px 20px; background-position: 0 0, 10px 10px; }
+        button { background: #00b894; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; transition: 0.2s; margin-top: 15px; }
+        button:hover { background: #009475; }
+        button:disabled { background: #b2bec3; cursor: not-allowed; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>✂️ AI 離線去背</h1>
+    <p>圖片在瀏覽器內處理，不會上傳至伺服器，保護隱私。</p>
+
+    <div class="upload-area" id="dropZone">
+        <p>拖曳圖片到這裡，或點擊選擇檔案</p>
+        <input type="file" id="fileInput" accept="image/*" class="hidden">
+    </div>
+
+    <div id="status"></div>
+
+    <div class="result-container hidden" id="resultArea">
+        <div class="img-box">
+            <h4>原始圖片</h4>
+            <img id="originalImg" src="" alt="原始圖片">
+        </div>
+        <div class="img-box">
+            <h4>去背結果</h4>
+            <img id="processedImg" src="" alt="去背結果">
+            <br>
+            <button id="downloadBtn">下載透明 PNG</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const status = document.getElementById('status');
+    const resultArea = document.getElementById('resultArea');
+    const originalImg = document.getElementById('originalImg');
+    const processedImg = document.getElementById('processedImg');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    // 點擊上傳
+    dropZone.onclick = () => fileInput.click();
+
+    // 處理檔案
+    fileInput.onchange = (e) => handleFile(e.target.files[0]);
+
+    // 拖曳上傳
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.borderColor = '#0984e3'; };
+    dropZone.ondragleave = () => { dropZone.style.borderColor = '#dfe6e9'; };
+    dropZone.ondrop = (e) => {
+        e.preventDefault();
+        handleFile(e.dataTransfer.files[0]);
+    };
+
+    async function handleFile(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+
+        // 重置 UI
+        status.innerText = "正在加載 AI 模型並處理圖片 (首次執行較久)...";
+        resultArea.classList.add('hidden');
+        
+        // 顯示原圖
+        const reader = new FileReader();
+        reader.onload = (e) => originalImg.src = e.target.result;
+        reader.readAsDataURL(file);
+
+        try {
+            // 執行去背 (imgly-sdk 會在瀏覽器本地端運算)
+            const blob = await imglyRemoveBackground(file, {
+                progress: (item, progress) => {
+                    status.innerText = `處理中: ${Math.round(progress * 100)}%`;
+                }
+            });
+
+            // 顯示結果
+            const url = URL.createObjectURL(blob);
+            processedImg.src = url;
+            resultArea.classList.remove('hidden');
+            status.innerText = "✅ 完成！";
+
+            // 下載功能
+            downloadBtn.onclick = () => {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `removed_bg_${new Date().getTime()}.png`;
+                a.click();
+            };
+
+        } catch (error) {
+            console.error(error);
+            status.innerText = "❌ 發生錯誤，請重試。";
+        }
+    }
+</script>
+
+</body>
+</html>
