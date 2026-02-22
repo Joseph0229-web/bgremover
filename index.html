@@ -3,103 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 離線去背神器</title>
+    <title>AI 離線去背 (終極穩定版)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.8/dist/browser.js"></script>
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; background: #f0f2f5; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .card { max-width: 600px; width: 100%; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; }
-        .drop-zone { border: 3px dashed #4a90e2; padding: 40px 20px; border-radius: 15px; cursor: pointer; margin: 20px 0; background: #f8fbff; }
-        #status { color: #4a90e2; font-weight: bold; margin: 15px 0; min-height: 24px; }
-        .preview-box { margin-top: 20px; position: relative; display: inline-block; }
-        img { max-width: 100%; border-radius: 10px; display: none; background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 20px 20px; background-position: 0 0, 0 10px, 10px -10px, -10px 0px; }
-        button { background: #28a745; color: white; border: none; padding: 12px 25px; border-radius: 8px; font-size: 16px; cursor: pointer; display: none; margin-top: 15px; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: #f4f7f6; display: flex; flex-direction: column; align-items: center; padding: 30px 20px; }
+        .container { max-width: 650px; width: 100%; background: white; padding: 40px 30px; border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,0.08); text-align: center; }
+        h2 { margin-top: 0; color: #2d3436; }
+        p.subtitle { color: #636e72; font-size: 15px; margin-bottom: 25px; }
+        .upload-area { border: 2px dashed #b2bec3; padding: 50px 20px; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; background: #fafbfc; }
+        .upload-area:hover { border-color: #0984e3; background: #f0f7ff; }
+        #status { font-weight: bold; color: #0984e3; margin: 20px 0; min-height: 24px; font-size: 16px; }
+        #progressBar { width: 100%; height: 8px; background: #dfe6e9; border-radius: 4px; overflow: hidden; display: none; margin-bottom: 20px; }
+        #progressFill { width: 0%; height: 100%; background: #00b894; transition: width 0.3s; }
+        .image-wrapper { margin-top: 20px; display: none; }
+        img { max-width: 100%; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); background-image: conic-gradient(#eee 90deg, #fff 90deg 180deg, #eee 180deg 270deg, #fff 270deg); background-size: 20px 20px; }
+        button { background: #00b894; color: white; border: none; padding: 14px 28px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; display: none; margin-top: 20px; transition: background 0.2s; width: 100%; max-width: 300px; }
+        button:hover { background: #00a080; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>✂️ AI 專業去背 (測試版1)</h2>
-    <p>圖片僅在瀏覽器處理，不傳送至任何伺服器</p>
-    
-    <div class="drop-zone" id="dropZone">點擊或拖曳圖片至此</div>
-    <input type="file" id="fileInput" hidden accept="image/*">
-    
-    <div id="status">準備就緒</div>
-    
-    <div class="preview-box">
-        <img id="outputImage">
+<div class="container">
+    <h2>✨ AI 一鍵去背神器</h2>
+    <p class="subtitle">圖片完全在您的裝置上處理，保障隱私，安全無憂</p>
+
+    <div class="upload-area" id="dropZone">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#636e72" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 10px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        <div style="font-size: 18px; color: #2d3436; font-weight: 500;">點擊或拖曳圖片至此處</div>
+        <div style="font-size: 13px; color: #b2bec3; margin-top: 8px;">支援 JPG, PNG 格式</div>
     </div>
-    <br>
-    <a id="downloadLink" style="text-decoration:none;"><button id="saveBtn">下載透明 PNG</button></a>
+    <input type="file" id="fileInput" hidden accept="image/*">
+
+    <div id="status"></div>
+    
+    <div id="progressBar"><div id="progressFill"></div></div>
+
+    <div class="image-wrapper" id="imageWrapper">
+        <img id="outputImage" alt="去背結果">
+    </div>
+
+    <a id="downloadLink" style="text-decoration:none;"><button id="saveBtn">⬇️ 下載去背圖片</button></a>
 </div>
 
-<script type="module">
-    // 引入 Transformers.js
-    import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.1';
-
-    // *** 關鍵修復：強制指向公共 CDN 避免 Unauthorized 錯誤 ***
-    env.allowLocalModels = false;
-    env.remoteHost = 'https://huggingface.co/';
-    env.remotePathComponent = 'datasets/Xenova/transformers.js-models/resolve/main/';
-
+<script>
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
     const status = document.getElementById('status');
+    const progressBar = document.getElementById('progressBar');
+    const progressFill = document.getElementById('progressFill');
+    const imageWrapper = document.getElementById('imageWrapper');
     const outputImage = document.getElementById('outputImage');
     const downloadLink = document.getElementById('downloadLink');
     const saveBtn = document.getElementById('saveBtn');
 
-    let segmenter;
-
+    // 點擊上傳
     dropZone.onclick = () => fileInput.click();
 
-    fileInput.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    // 拖曳上傳
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.borderColor = '#0984e3'; dropZone.style.background = '#f0f7ff'; };
+    dropZone.ondragleave = () => { dropZone.style.borderColor = '#b2bec3'; dropZone.style.background = '#fafbfc'; };
+    dropZone.ondrop = (e) => { e.preventDefault(); dropZone.style.borderColor = '#b2bec3'; dropZone.style.background = '#fafbfc'; handleFile(e.dataTransfer.files[0]); };
 
-        status.innerText = "⏳ 載入 AI 模型中 (僅首次需下載)...";
-        outputImage.style.display = 'none';
+    fileInput.onchange = (e) => handleFile(e.target.files[0]);
+
+    async function handleFile(file) {
+        if (!file || !file.type.startsWith('image/')) {
+            alert("請上傳有效的圖片檔案！");
+            return;
+        }
+
+        // 重置介面
+        imageWrapper.style.display = 'none';
         saveBtn.style.display = 'none';
+        progressBar.style.display = 'block';
+        progressFill.style.width = '0%';
+        status.innerText = "⏳ 正在啟動 AI 引擎 (首次需下載約 40MB，請稍候)...";
+        status.style.color = "#0984e3";
 
         try {
-            // 初始化去背模型
-            if (!segmenter) {
-                segmenter = await pipeline('image-segmentation', 'Xenova/rmbg-1.4');
-            }
-
-            status.innerText = "⚡ 正在去背，請稍候...";
-            
-            // 讀取檔案
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                const imgUrl = event.target.result;
-                
-                // 執行 AI 運算
-                const output = await segmenter(imgUrl);
-                
-                // 處理輸出結果
-                const canvas = document.createElement('canvas');
-                canvas.width = output.width;
-                canvas.height = output.height;
-                const ctx = canvas.getContext('2d');
-                ctx.putImageData(output.toImageData(), 0, 0);
-
-                const pngUrl = canvas.toDataURL('image/png');
-                outputImage.src = pngUrl;
-                outputImage.style.display = 'block';
-                
-                downloadLink.href = pngUrl;
-                downloadLink.download = 'removed_bg.png';
-                saveBtn.style.display = 'inline-block';
-                
-                status.innerText = "✅ 完成！";
+            // 使用 imgly 提供的全域變數 imglyRemoveBackground
+            const config = {
+                progress: (key, current, total) => {
+                    const percent = Math.round((current / total) * 100);
+                    status.innerText = `下載模型中... ${percent}%`;
+                    progressFill.style.width = `${percent}%`;
+                    if (percent === 100) {
+                        status.innerText = "⚡ 正在執行去背運算...";
+                    }
+                }
             };
-            reader.readAsDataURL(file);
 
-        } catch (err) {
-            console.error(err);
-            status.innerText = "❌ 錯誤: " + err.message + "\n請嘗試重新整理頁面。";
+            const blob = await imglyRemoveBackground(file, config);
+
+            // 處理結果
+            const url = URL.createObjectURL(blob);
+            outputImage.src = url;
+            
+            downloadLink.href = url;
+            downloadLink.download = `nobg_${Date.now()}.png`;
+
+            // 更新介面
+            progressBar.style.display = 'none';
+            status.innerText = "✅ 去背完成！";
+            status.style.color = "#00b894";
+            imageWrapper.style.display = 'block';
+            saveBtn.style.display = 'inline-block';
+
+        } catch (error) {
+            console.error("去背失敗:", error);
+            progressBar.style.display = 'none';
+            status.innerText = "❌ 處理失敗，請嘗試使用較小的圖片或重新整理網頁。";
+            status.style.color = "#d63031";
         }
-    };
+    }
 </script>
 
 </body>
